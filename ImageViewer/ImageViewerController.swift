@@ -2,6 +2,9 @@ import UIKit
 import AVFoundation
 
 public final class ImageViewerController: UIViewController {
+    public static let HASHABLE_IMAGEVIEW_KEY = "imageView"
+    public static let DISMISS_NOTIFICATION_NAME_RAW = "onDismissal"
+    
     @IBOutlet fileprivate var scrollView: UIScrollView!
     @IBOutlet fileprivate var imageView: UIImageView!
     @IBOutlet fileprivate var activityIndicator: UIActivityIndicatorView!
@@ -94,27 +97,38 @@ private extension ImageViewerController {
         }
     }
     
-    @IBAction func closeButtonPressed() {
-        dismiss(animated: true)
+    func postDismissalNotification() {
+        NotificationCenter.default.post(name: NSNotification.Name(rawValue: ImageViewerController.DISMISS_NOTIFICATION_NAME_RAW), object: nil, userInfo: [ImageViewerController.HASHABLE_IMAGEVIEW_KEY: self.configuration?.imageView as Any])
     }
     
-    @objc func imageViewDoubleTapped(recognizer: UITapGestureRecognizer) {
-        func zoomRectForScale(scale: CGFloat, center: CGPoint) -> CGRect {
-            var zoomRect = CGRect.zero
-            zoomRect.size.height = imageView.frame.size.height / scale
-            zoomRect.size.width  = imageView.frame.size.width  / scale
-            let newCenter = scrollView.convert(center, from: imageView)
-            zoomRect.origin.x = newCenter.x - (zoomRect.size.width / 2.0)
-            zoomRect.origin.y = newCenter.y - (zoomRect.size.height / 2.0)
-            return zoomRect
+    @IBAction func closeButtonPressed() {
+        dismiss(animated: true) {
+            self.postDismissalNotification()
         }
-
+    }
+    
+    @objc func imageViewDoubleTapped(_ sender: UITapGestureRecognizer) {
         if scrollView.zoomScale > scrollView.minimumZoomScale {
             scrollView.setZoomScale(scrollView.minimumZoomScale, animated: true)
         } else {
-            scrollView.zoom(to: zoomRectForScale(scale: scrollView.maximumZoomScale, center: recognizer.location(in: recognizer.view)), animated: true)
+            scrollView.zoom(to: zoomRectForScale(scale: scrollView.maximumZoomScale, center: sender.location(in: sender.view)), animated: true)
+            scrollView.setZoomScale(scrollView.maximumZoomScale, animated: true)
         }
     }
+    
+    func zoomRectForScale(scale: CGFloat, center: CGPoint) -> CGRect {
+        var zoomRect = CGRect.zero
+        let newCenter = scrollView.convert(center, from: scrollView)
+        
+        zoomRect.size.height = scrollView.frame.size.height / scale
+        zoomRect.size.width  = scrollView.frame.size.width  / scale
+        
+        zoomRect.origin.x = newCenter.x - (zoomRect.size.width / 2.0)
+        zoomRect.origin.y = newCenter.y - (zoomRect.size.height / 2.0)
+        
+        return zoomRect
+    }
+
     
     @objc func imageViewPanned(_ recognizer: UIPanGestureRecognizer) {
         guard transitionHandler != nil else { return }
@@ -135,6 +149,8 @@ private extension ImageViewerController {
             let percentage = abs(translation.y + velocity.y) / imageView.bounds.height
             if percentage > 0.25 {
                 transitionHandler?.dismissalInteractor.finish()
+                
+                postDismissalNotification()
             } else {
                 transitionHandler?.dismissalInteractor.cancel()
             }
