@@ -10,7 +10,7 @@ public final class ImageViewerController: UIViewController {
     @IBOutlet fileprivate var activityIndicator: UIActivityIndicatorView!
     
     fileprivate var transitionHandler: ImageViewerTransitioningHandler?
-    fileprivate let configuration: ImageViewerConfiguration?
+    public let configuration: ImageViewerConfiguration?
     
     public override var prefersStatusBarHidden: Bool {
         return true
